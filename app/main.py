@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 import app.db as db
+import math
 
 app = FastAPI()
 
@@ -40,3 +41,18 @@ async def get_customers():
     conn.close()
     print('Saiu na GET - /moneytran - upbetTiago')
     return results
+
+@app.get("/teste")
+async def get_teste():
+    print('Entrou na GET - /teste - Calculando')
+    
+    # Exemplo de cálculo matemático complexo
+    x = 15
+    y = 10
+    z = 5
+    
+    # Equação mais complexa envolvendo exponenciais, logaritmos e raízes
+    resultado = (math.exp(x) * math.log(y + z) / (x ** 2 + y ** 2)) + math.sqrt(x * y) - (math.sin(z) * math.cos(x - z)) + (y ** z)
+
+    print(f"Resultado do cálculo complexo: {resultado}")
+    return {"resultado": resultado}
