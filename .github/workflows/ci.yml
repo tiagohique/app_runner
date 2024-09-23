@@ -1,0 +1,61 @@
+name: Build and Deploy to AWS App Runner
+
+on:
+  push:
+    branches:
+      - main1
+  pull_request:
+    branches:
+      - main1
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout do Código
+      uses: actions/checkout@v2
+
+    - name: Configurar Credenciais AWS
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login no AWS ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Gerar TAG do Docker
+      run: |
+        echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Construir e Push da Imagem Docker
+      id: build-docker-image
+      env:
+        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY: indique-e-ganhe
+        TAG: ${{ env.TAG }}
+      run: |
+        IMAGE_URI=$REGISTRY/$REPOSITORY:$TAG
+        echo "Construindo a imagem Docker..."
+        docker build -t $IMAGE_URI -f Dockerfile .
+        echo "Marcando a imagem como 'latest'..."
+        docker tag $IMAGE_URI $REGISTRY/$REPOSITORY:latest
+        echo "Enviando a imagem para o ECR..."
+        docker push $IMAGE_URI
+        docker push $REGISTRY/$REPOSITORY:latest
+        # Define a saída 'image' com o URI da imagem
+        echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+    - name: Deploy no App Runner
+      uses: awslabs/amazon-app-runner-deploy@main
+      with:
+        service: indique-e-ganhe-service
+        image: ${{ steps.build-docker-image.outputs.image }}
+        region: us-east-1
+        access-role-arn: arn:aws:iam::288786226667:role/AppRunnerECRFullAccessRoleTiago
+        cpu: 0.25
+        memory: 0.5
+        port: 8000
