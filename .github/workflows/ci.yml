@@ -42,9 +42,8 @@ jobs:
           sudo apt install -y unzip
           curl -LO https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
           bash install.sh --accept-all-defaults --install-dir ~/bin
-          echo 'export PATH=~/bin:$PATH' >> ~/.bashrc
-          source ~/.bashrc
-        shell: bash
+          export PATH=~/bin:$PATH  # Adiciona o OCI CLI ao PATH para esta sessão
+          oci --version  # Verifica se o OCI CLI foi instalado corretamente
 
       - name: Configure Oracle CLI
         env:
@@ -64,8 +63,9 @@ jobs:
           key_file=~/.oci/oci_api_key.pem" > ~/.oci/config
 
       - name: Set up Kubernetes config
+        env:
+          PATH: ~/bin:$PATH  # Garante que o OCI CLI esteja no PATH
         run: |
-          source ~/.bashrc
           oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region $OCI_REGION --token-version 2.0.0
           kubectl config use-context $K8S_NAMESPACE
 
