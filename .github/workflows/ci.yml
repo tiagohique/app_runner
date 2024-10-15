@@ -65,6 +65,7 @@ jobs:
       - name: Set up Kubernetes config
         env:
           PATH: ~/bin:$PATH  # Garante que o OCI CLI esteja no PATH
+          OCI_REGION: ${{ secrets.OCI_REGION }}
         run: |
           oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region $OCI_REGION --token-version 2.0.0
           kubectl config use-context $K8S_NAMESPACE
