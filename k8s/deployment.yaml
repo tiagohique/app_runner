@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapprunner-deployment
+spec:
+  replicas: 2  # Número de réplicas
+  selector:
+    matchLabels:
+      app: myapprunner
+  template:
+    metadata:
+      labels:
+        app: myapprunner
+    spec:
+      containers:
+      - name: myapprunner
+        image: IMAGE_PLACEHOLDER
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "250m"         # Mínimo de CPU requerido (250 millicores)
+            memory: "512Mi"     # Mínimo de memória requerido (512 MiB)
+          limits:
+            cpu: "500m"         # Máximo de CPU permitido (500 millicores)
+            memory: "1Gi"       # Máximo de memória permitido (1 GiB)

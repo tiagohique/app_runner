@@ -1,61 +1,60 @@
-name: Build and Deploy to AWS App Runner
+name: Deploy to Oracle Cloud Kubernetes Engine (OKE)
 
 on:
   push:
     branches:
-      - master
-  pull_request:
-    branches:
-      - master
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    env:
+      DOCKER_REPO: 'tiagohique/myapprunner'
+      IMAGE_TAG: 'latest'
+      K8S_DEPLOYMENT: 'myapprunner-deployment'
+      K8S_NAMESPACE: 'default'
+
     steps:
-    - name: Checkout do Código
-      uses: actions/checkout@v2
+      - name: Check out the code
+        uses: actions/checkout@v2
 
-    - name: Configurar Credenciais AWS
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Login no AWS ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          tags: ${{ env.DOCKER_REPO }}:${{ env.IMAGE_TAG }}
+          push: true
 
-    - name: Gerar TAG do Docker
-      run: |
-        echo "TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+      - name: Set up Oracle Cloud CLI
+        uses: oracle/oci-cli-action@v1
+        with:
+          oci-config-file: ~/.oci/config
+          oci-key-file: ~/.oci/oci_api_key.pem
+          fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+          private-key: ${{ secrets.OCI_PRIVATE_KEY }}
+          tenancy: ${{ secrets.OCI_TENANCY }}
+          user: ${{ secrets.OCI_USER }}
+          region: ${{ secrets.OCI_REGION }}
 
-    - name: Construir e Push da Imagem Docker
-      id: build-docker-image
-      env:
-        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        REPOSITORY: app-runner
-        TAG: ${{ env.TAG }}
-      run: |
-        IMAGE_URI=$REGISTRY/$REPOSITORY:$TAG
-        echo "Construindo a imagem Docker..."
-        docker build -t $IMAGE_URI -f Dockerfile .
-        echo "Marcando a imagem como 'latest'..."
-        docker tag $IMAGE_URI $REGISTRY/$REPOSITORY:latest
-        echo "Enviando a imagem para o ECR..."
-        docker push $IMAGE_URI
-        docker push $REGISTRY/$REPOSITORY:latest
-        # Define a saída 'image' com o URI da imagem
-        echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+      - name: Set up Kubernetes config
+        run: |
+          oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region $OCI_REGION --token-version 2.0.0
+          kubectl config use-context $K8S_NAMESPACE
 
-    - name: Deploy no App Runner
-      uses: awslabs/amazon-app-runner-deploy@main
-      with:
-        service: teste-upbet
-        image: ${{ steps.build-docker-image.outputs.image }}
-        region: us-east-1
-        access-role-arn: arn:aws:iam::288786226667:role/AppRunnerECRFullAccessRoleTiago
-        cpu: 0.25
-        memory: 0.5
-        port: 8000
+      - name: Deploy Kubernetes Manifests
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml  # Aplica o Service primeiro para garantir conectividade
+         
+
+      - name: Update Deployment Image
+        run: |
+          kubectl set image deployment/$K8S_DEPLOYMENT $K8S_DEPLOYMENT=$DOCKER_REPO:$IMAGE_TAG -n $K8S_NAMESPACE
+          kubectl rollout status deployment/$K8S_DEPLOYMENT -n $K8S_NAMESPACE
