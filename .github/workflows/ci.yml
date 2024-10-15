@@ -36,17 +36,27 @@ jobs:
           tags: ${{ env.DOCKER_REPO }}:${{ env.IMAGE_TAG }}
           push: true
 
-      - name: Configurar o Oracle CLI
-        uses: oracle/oci-cli-action@v1
+      - name: Configurar Python (requisito para OCI CLI)
+        uses: actions/setup-python@v2
         with:
-          oci-version: 'latest'
-          tenancy: ${{ secrets.OCI_TENANCY }}
-          user: ${{ secrets.OCI_USER }}
-          fingerprint: ${{ secrets.OCI_FINGERPRINT }}
-          region: ${{ secrets.OCI_REGION }}
-          private-key: ${{ secrets.OCI_PRIVATE_KEY }}
-          config-file-path: '~/.oci/config'
-          key-file-path: '~/.oci/oci_api_key.pem'
+          python-version: '3.x'
+
+      - name: Instalar OCI CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_api_key.pem
+
+      - name: Configurar o Oracle CLI
+        run: |
+          mkdir -p ~/.oci
+          cat <<EOF > ~/.oci/config
+          [DEFAULT]
+          user=${{ secrets.OCI_USER }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          key_file=~/.oci/oci_api_key.pem
+          tenancy=${{ secrets.OCI_TENANCY }}
+          region=${{ secrets.OCI_REGION }}
+          EOF
 
       - name: Instalar o kubectl
         uses: azure/setup-kubectl@v3
