@@ -36,47 +36,26 @@ jobs:
           tags: ${{ env.DOCKER_REPO }}:${{ env.IMAGE_TAG }}
           push: true
 
-      - name: Instalar o Oracle CLI
-        run: |
-          sudo apt update
-          sudo apt install -y unzip
-          curl -LO https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          bash install.sh --accept-all-defaults --install-dir ~/bin
-          echo "$HOME/bin" >> $GITHUB_PATH  # Adiciona o OCI CLI ao PATH
-          oci --version  # Verifica se o OCI CLI foi instalado corretamente
-
       - name: Configurar o Oracle CLI
-        env:
-          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-          OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
-          OCI_USER: ${{ secrets.OCI_USER }}
-          OCI_REGION: ${{ secrets.OCI_REGION }}
-        run: |
-          mkdir -p ~/.oci
-          echo "$OCI_PRIVATE_KEY" | base64 --decode > ~/.oci/oci_api_key.pem
-          echo "[DEFAULT]
-          user=$OCI_USER
-          fingerprint=$OCI_FINGERPRINT
-          tenancy=$OCI_TENANCY
-          region=$OCI_REGION
-          key_file=~/.oci/oci_api_key.pem" > ~/.oci/config
-          # Corrige as permissões dos arquivos
-          oci setup repair-file-permissions --file ~/.oci/config
-          oci setup repair-file-permissions --file ~/.oci/oci_api_key.pem
+        uses: oracle/oci-cli-action@v1
+        with:
+          oci-version: 'latest'
+          tenancy: ${{ secrets.OCI_TENANCY }}
+          user: ${{ secrets.OCI_USER }}
+          fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+          region: ${{ secrets.OCI_REGION }}
+          private-key: ${{ secrets.OCI_PRIVATE_KEY }}
+          config-file-path: '~/.oci/config'
+          key-file-path: '~/.oci/oci_api_key.pem'
 
       - name: Instalar o kubectl
-        run: |
-          curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
-          kubectl version --client
+        uses: azure/setup-kubectl@v3
+        with:
+          kubectl-version: 'latest'
 
       - name: Configurar o Kubernetes
-        env:
-          OCI_REGION: ${{ secrets.OCI_REGION }}
         run: |
-          oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region $OCI_REGION --token-version 2.0.0
+          oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region ${{ secrets.OCI_REGION }} --token-version 2.0.0
           kubectl config use-context $K8S_NAMESPACE
 
       - name: Implantar Manifests do Kubernetes
