@@ -41,7 +41,10 @@ jobs:
           sudo apt update
           sudo apt install -y unzip
           curl -LO https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          bash install.sh --accept-all-defaults
+          bash install.sh --accept-all-defaults --install-dir ~/bin
+          echo 'export PATH=~/bin:$PATH' >> ~/.bashrc
+          source ~/.bashrc
+        shell: bash
 
       - name: Configure Oracle CLI
         env:
@@ -62,6 +65,7 @@ jobs:
 
       - name: Set up Kubernetes config
         run: |
+          source ~/.bashrc
           oci ce cluster create-kubeconfig --cluster-id ${{ secrets.OKE_CLUSTER_ID }} --file ~/.kube/config --region $OCI_REGION --token-version 2.0.0
           kubectl config use-context $K8S_NAMESPACE
 
@@ -69,7 +73,7 @@ jobs:
         run: |
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/deployment.yaml
-#dasasds
+
       - name: Update Deployment Image
         run: |
           kubectl set image deployment/$K8S_DEPLOYMENT $K8S_DEPLOYMENT=$DOCKER_REPO:$IMAGE_TAG -n $K8S_NAMESPACE
