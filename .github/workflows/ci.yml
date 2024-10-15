@@ -32,16 +32,29 @@ jobs:
           tags: ${{ env.DOCKER_REPO }}:${{ env.IMAGE_TAG }}
           push: true
 
-      - name: Set up Oracle Cloud CLI
-        uses: oracle/oci-cli-action@v1
-        with:
-          oci-config-file: ~/.oci/config
-          oci-key-file: ~/.oci/oci_api_key.pem
-          fingerprint: ${{ secrets.OCI_FINGERPRINT }}
-          private-key: ${{ secrets.OCI_PRIVATE_KEY }}
-          tenancy: ${{ secrets.OCI_TENANCY }}
-          user: ${{ secrets.OCI_USER }}
-          region: ${{ secrets.OCI_REGION }}
+      - name: Install Oracle CLI
+        run: |
+          sudo apt update
+          sudo apt install -y unzip
+          curl -LO https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          bash install.sh --accept-all-defaults
+
+      - name: Configure Oracle CLI
+        env:
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+        run: |
+          mkdir -p ~/.oci
+          echo "$OCI_PRIVATE_KEY" | base64 --decode > ~/.oci/oci_api_key.pem
+          echo "[DEFAULT]
+          user=$OCI_USER
+          fingerprint=$OCI_FINGERPRINT
+          tenancy=$OCI_TENANCY
+          region=$OCI_REGION
+          key_file=~/.oci/oci_api_key.pem" > ~/.oci/config
 
       - name: Set up Kubernetes config
         run: |
@@ -50,9 +63,8 @@ jobs:
 
       - name: Deploy Kubernetes Manifests
         run: |
+          kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml  # Aplica o Service primeiro para garantir conectividade
-         
 
       - name: Update Deployment Image
         run: |

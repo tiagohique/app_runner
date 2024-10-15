@@ -22,5 +22,5 @@ spec:
             cpu: "250m"         # Mínimo de CPU requerido (250 millicores)
             memory: "512Mi"     # Mínimo de memória requerido (512 MiB)
           limits:
-            cpu: "500m"         # Máximo de CPU permitido (500 millicores)
-            memory: "1Gi"       # Máximo de memória permitido (1 GiB)
+            cpu: "250m"         # Máximo de CPU permitido (500 millicores)
+            memory: "512Mi"       # Máximo de memória permitido (1 GiB)
