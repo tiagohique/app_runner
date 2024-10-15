@@ -69,7 +69,7 @@ jobs:
         run: |
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/deployment.yaml
-
+#dasasds
       - name: Update Deployment Image
         run: |
           kubectl set image deployment/$K8S_DEPLOYMENT $K8S_DEPLOYMENT=$DOCKER_REPO:$IMAGE_TAG -n $K8S_NAMESPACE
