@@ -3,51 +3,66 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - master  # Ou a branch que você deseja monitorar
+      - main  # Ou a branch que você deseja monitorar
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout do código
-      uses: actions/checkout@v3
+      - name: Checkout do código
+        uses: actions/checkout@v3
 
-    - name: Configurar QEMU para multi-arquitetura
-      uses: docker/setup-qemu-action@v2
+      - name: Configurar QEMU para multi-arquitetura
+        uses: docker/setup-qemu-action@v2
 
-    - name: Configurar Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Login no Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Login no Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Construir e enviar a imagem Docker para arm64
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        platforms: linux/arm64
-        push: true
-        tags: ${{ secrets.IMAGE_NAME }}:latest
+      - name: Construir e enviar a imagem Docker para arm64
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ secrets.IMAGE_NAME }}:latest
 
-    - name: Instalar kubectl
-      run: |
-        curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
 
-    - name: Configurar kubectl com o kubeconfig do OKE
-      run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.OKE_KEY_BASE64 }}" | base64 -d > $HOME/.kube/config
+      - name: Listar arquivos na pasta k8s (opcional para depuração)
+        run: |
+          ls -l k8s/
 
-    - name: Atualizar manifests Kubernetes com a imagem correta
-      run: |
-        sed -i "s|\${{ secrets.IMAGE_NAME }}|${{ secrets.IMAGE_NAME }}:latest|g" deployment.yaml
+      - name: Instalar kubectl
+        run: |
+          curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
 
-    - name: Aplicar manifests Kubernetes
-      run: |
-        kubectl apply -f deployment.yaml
-        kubectl apply -f service.yaml
+      - name: Configurar kubectl com o kubeconfig do OKE
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.OKE_KEY_BASE64 }}" | base64 -d > $HOME/.kube/config
+
+      - name: Definir variável de ambiente com o nome da imagem
+        run: |
+          echo "IMAGE_NAME=${{ secrets.IMAGE_NAME }}:latest" >> $GITHUB_ENV
+
+      - name: Substituir placeholders nos manifests Kubernetes
+        run: |
+          envsubst < k8s/deployment.yaml > k8s/deployment_rendered.yaml
+
+      - name: Aplicar manifests Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment_rendered.yaml
+          kubectl apply -f k8s/service.yaml
