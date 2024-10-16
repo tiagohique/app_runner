@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: myapprunner
-        image: IMAGE_PLACEHOLDER
+        image: ${{ secrets.IMAGE_NAME }}
         ports:
         - containerPort: 80
         resources:

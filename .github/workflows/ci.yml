@@ -9,7 +9,7 @@ env:
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   OKE_KUBECONFIG: ${{ secrets.OKE_KUBECONFIG }}
-  IMAGE_NAME: your-dockerhub-username/app-runner
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
 
 jobs:
   build:
