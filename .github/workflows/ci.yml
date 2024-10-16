@@ -6,8 +6,8 @@ on:
       - master
 
 env:
-  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   OKE_KUBECONFIG: ${{ secrets.OKE_KUBECONFIG }}
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
 
@@ -32,7 +32,7 @@ jobs:
         run: docker build -t $IMAGE_NAME:latest .
 
       - name: Log in to Docker Hub
-        run: echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        run: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
       - name: Push Docker image
         run: docker push $IMAGE_NAME:latest
